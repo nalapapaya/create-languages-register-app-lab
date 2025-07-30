@@ -1,0 +1,12 @@
+The app would be able to:
+
+Retrieve all languages
+Delete a language
+Add a language
+Retrieve all languages a user knows
+Delete a language a user knows
+Add a new language for a particular user
+Retrieve all users
+Add a new user
+Delete a user
+Update a user
