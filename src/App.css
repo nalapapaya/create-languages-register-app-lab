@@ -12,7 +12,12 @@ h1 {
   text-align: center;
 }
 
-.list-container {
+.container {
+  display: flex;
+  justify-content: center;
+}
+
+.list-container, .user-container {
   border: 2px solid white;
   padding: 1rem;
   border-radius: 12px;
