@@ -1,5 +1,5 @@
 body {
-  margin: 0;
+  margin: 2rem;
   display: flex;
   min-width: 320px;
   min-height: 100vh;
@@ -15,12 +15,17 @@ h1 {
 .container {
   display: flex;
   justify-content: center;
+  gap: 2rem;
 }
 
 .list-container, .user-container {
   border: 2px solid white;
   padding: 1rem;
   border-radius: 12px;
+}
+
+.user-container {
+  width: 55rem;
 }
 
 .list {
@@ -31,4 +36,8 @@ h1 {
 
 .language-items {
   font-size: 1.5rem;
+}
+
+button {
+  color: white;
 }

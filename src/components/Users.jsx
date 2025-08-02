@@ -1,15 +1,16 @@
-import React, { use } from "react";
-import { useState, useEffect } from "react";
+import React from "react";
+import { useState, useEffect, useRef } from "react";
+import UserCard from "./UserCard";
+import UserUpdateModal from "./UserUpdateModal";
 
 const Users = () => {
   const [users, setUsers] = useState([]);
-  const [newUserName, setNewUserName] = useState("");
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [usersLanguage, setUsersLanguage] = useState([]);
-  const [newUsersLanguage, setNewUsersLanguage] = useState("");
-  const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [userToUpdate, setUserToUpdate] = useState(null);
+  const userNameRef = useRef();
 
+  //fetch users on mount
   const getUsers = async () => {
     try {
       const res = await fetch(import.meta.env.VITE_SERVER + "/lab/users");
@@ -25,17 +26,17 @@ const Users = () => {
     getUsers();
   }, []);
 
+  //adding new users (PUT)
   const addUser = async () => {
-    const trimmedName = newUserName.trim();
+    const trimmedName = userNameRef.current.value.trim(); // removes space
     const isDuplicate = users.some(
+      //validate user no duplicate
       (user) => user.name.toLowerCase() === trimmedName.toLowerCase()
     );
     if (isDuplicate) {
-      setIsError(true);
       setErrorMessage("Username already exists.");
       return;
     }
-
     try {
       const res = await fetch(import.meta.env.VITE_SERVER + "/lab/users", {
         method: "PUT",
@@ -43,92 +44,44 @@ const Users = () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          name: newUserName,
+          name: trimmedName,
         }),
       });
       if (res.ok) {
-        setIsError(false);
-        setErrorMessage("Username successfully added! Please refresh page!");
+        setErrorMessage("Username successfully added!");
+        userNameRef.current.value = ""; //clear fill
+        getUsers(); // refresh
       }
     } catch (error) {
       console.error(error.message);
     }
   };
 
-  const updateUser = async (updatedName) => {
+  //delete users (DELETE)
+  const deleteUser = async (userId) => {
     try {
-      const res = await fetch(
-        `${import.meta.env.VITE_SERVER}/lab/users/${selectedUser.id}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: updatedName }),
-        }
-      );
-      if (res.ok) {
-        setErrorMessage("User updated successfully!");
-        setIsError(false);
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  const deleteUser = async () => {
-    try {
-      const res = await fetch(
-        `${import.meta.env.VITE_SERVER}/lab/users/${selectedUser.id}`,
-        { method: "DELETE" }
-      );
+      const res = await fetch(`${import.meta.env.VITE_SERVER}/lab/users`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ user_id: userId }),
+      });
       if (res.ok) {
         setErrorMessage("User deleted successfully!");
-        setIsError(false);
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  const handleSelectedUser = async (user) => {
-    setSelectedUser(user);
-    try {
-      const res = await fetch(
-        `${
-          import.meta.env.VITE_SERVER +
-          "/lab/users/" +
-          `${user.id}` +
-          "/languages"
-        }`
-      );
-      if (res.ok) {
-        const data = await res.json();
-        setUsersLanguage(data);
+        getUsers(); // refresh the user list
       }
     } catch (error) {
       console.error(error.message);
+      setErrorMessage("Error deleting user.");
     }
   };
 
-  const addLangToUser = async () => {
-    try {
-      const res = await fetch(
-        `${
-          import.meta.env.VITE_SERVER +
-          "/lab/users/" +
-          `${selectedUser.id}` +
-          "/languages"
-        }`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ language: newUsersLanguage }),
-        }
-      );
-    } catch (error) {
-      console.error(error.message);
-    }
+  //edit button
+  const handleEditClick = (userId) => {
+    const user = users.find((u) => u.id === userId);
+    setUserToUpdate(user);
+    setShowUpdateModal(true);
   };
 
   return (
@@ -139,34 +92,34 @@ const Users = () => {
           type="text"
           className="col-md-8"
           placeholder="Add new username"
-          value={newUserName}
-          onChange={(event) => setNewUserName(event.target.value)}
+          ref={userNameRef}
         ></input>
         <button className="col-md-4" onClick={addUser}>
           Submit
         </button>
       </div>
-      <div className="row">{errorMessage}</div>
+      {errorMessage && <div className="error-message">{errorMessage}</div>}
       {users.map((user) => (
-        <button
+        <UserCard
           key={user.id}
-          className="user-btn"
-          onClick={() => setSelectedUser(user)}
-        >
-          {user.name}
-        </button>
+          id={user.id}
+          name={user.name}
+          age={user.age}
+          languages={user.languages}
+          getUsers={getUsers}
+          onDelete={deleteUser}
+          onEdit={handleEditClick}
+        ></UserCard>
       ))}
-      {selectedUser && (
-        <div className="user-details">
-          <h3>{selectedUser.name}'s Languages</h3>
-          <ul>
-            {usersLanguage.map((lang) => (
-              <li key={lang.language}>{lang.language}</li>
-            ))}
-          </ul>
-          <button onClick={updateUser}>Update User</button>
-          <button onClick={deleteUser}>Delete User</button>
-        </div>
+
+      {showUpdateModal && userToUpdate && (
+        <UserUpdateModal
+          id={userToUpdate.id}
+          name={userToUpdate.name}
+          age={userToUpdate.age}
+          onClose={() => setShowUpdateModal(false)}
+          onUpdate={getUsers}
+        />
       )}
     </div>
   );
