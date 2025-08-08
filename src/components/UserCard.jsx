@@ -1,12 +1,25 @@
-import React from "react";
-import { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 
 const UserCard = (props) => {
-  const [languages, setLanguages] = useState([]);
-  const [languageInput, setLanguageInput] = useState("");
+  const [globalLanguages, setGlobalLanguages] = useState([]); // from /lab/languages
+  const [userLanguages, setUserLanguages] = useState([]);     // from /lab/users/languages
+  const [isLoading, setIsLoading] = useState(true);
 
-  // to fetch languages
-  const fetchLanguages = async () => {
+  // fetch global language pool
+  const fetchGlobalLanguages = async () => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_SERVER}/lab/languages`);
+      if (res.ok) {
+        const data = await res.json();
+        setGlobalLanguages(data.map((l) => l.language)); // extract string only
+      }
+    } catch (err) {
+      console.error("Failed to fetch global languages:", err);
+    }
+  };
+
+  // fetch languages for specific user
+  const fetchUserLanguages = async () => {
     try {
       const res = await fetch(
         `${import.meta.env.VITE_SERVER}/lab/users/languages`,
@@ -18,24 +31,26 @@ const UserCard = (props) => {
       );
       if (res.ok) {
         const data = await res.json();
-        setLanguages(data);
-      } else {
-        setLanguages([]);
+        setUserLanguages(data);
       }
     } catch (err) {
-      console.error("Failed to fetch languages", err);
-      setLanguages([]);
+      console.error("Failed to fetch user languages:", err);
     }
   };
+
+  // Initial data fetch
   useEffect(() => {
-    fetchLanguages();
+    const loadAll = async () => {
+      setIsLoading(true);
+      await fetchGlobalLanguages();
+      await fetchUserLanguages();
+      setIsLoading(false);
+    };
+    loadAll();
   }, [props.id]);
 
-  // Add a new language
-  const handleAddLanguage = async () => {
-    const trimmedLang = languageInput.trim();
-    if (!trimmedLang) return;
-
+  // add language for the user
+  const handleAddLanguage = async (language) => {
     try {
       const res = await fetch(
         `${import.meta.env.VITE_SERVER}/lab/users/languages`,
@@ -44,32 +59,20 @@ const UserCard = (props) => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             user_id: props.id,
-            language: trimmedLang,
+            language: language,
           }),
         }
       );
       if (res.ok) {
-        setLanguageInput("");
-        // refresh languages after adding
-        const updatedRes = await fetch(
-          `${import.meta.env.VITE_SERVER}/lab/users/languages`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ user_id: props.id }),
-          }
-        );
-        const updatedLanguages = await updatedRes.json();
-        setLanguages(updatedLanguages);
+        await fetchUserLanguages(); // refresh list
       }
     } catch (err) {
-      console.error("Failed to add language", err);
+      console.error("Failed to add language:", err);
     }
   };
 
-  //delete language
-
-  const handleDeleteLanguage = async (lang) => {
+  // delete language for user
+  const handleDeleteLanguage = async (language) => {
     try {
       const res = await fetch(
         `${import.meta.env.VITE_SERVER}/lab/users/languages`,
@@ -78,60 +81,57 @@ const UserCard = (props) => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             user_id: props.id,
-            language: lang,
+            language: language,
           }),
         }
       );
       if (res.ok) {
-        // Refresh languages after delete
-        setLanguages(languages.filter((l) => l.language !== lang));
+        await fetchUserLanguages(); // refresh list
       }
     } catch (err) {
-      console.error("Failed to delete language", err);
+      console.error("Failed to delete language:", err);
     }
   };
 
   return (
     <div className="user-card">
-      <div>Name: {props.name}</div>
-      <div>Age: {props.age ?? "N/A"}</div>
+      <div><b>Name:</b> {props.name}</div>
+      <div><b>Age:</b> {props.age ?? "N/A"}</div>
+
       <div>
         <b>Languages known:</b>
-        {languages.length === 0 ? (
-          <div>None</div>
+        <span style={{ marginLeft: "2px"}}>{userLanguages.length > 0 ? userLanguages.join(", ") : "None"}</span>
+        {/* to display as text for easier view */}
+        {isLoading ? (
+          <div>Loading...</div>
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Language</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {languages.map((lang) => (
-                <tr key={lang.language}>
-                  <td>{lang.language}</td>
-                  <td>
-                    <button onClick={() => handleDeleteLanguage(lang.language)}>
-                      Delete
+          <ul>
+            {globalLanguages.map((lang) => {
+              const knowsLang = userLanguages.includes(lang);
+              return (
+                <li key={lang}>
+                  {lang}
+                  {knowsLang ? (
+                    <button onClick={() => handleDeleteLanguage(lang)}>
+                      Remove
                     </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  ) : (
+                    <button onClick={() => handleAddLanguage(lang)}>
+                      Add
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          
         )}
+       
       </div>
 
-      <input
-        type="text"
-        placeholder="Add language"
-        value={languageInput}
-        onChange={(e) => setLanguageInput(e.target.value)}
-      />
-      <button onClick={handleAddLanguage}>Add</button>
       <button onClick={() => props.onDelete(props.id)}>Delete User</button>
       <button onClick={() => props.onEdit(props.id)}>Update</button>
+       <hr/>
     </div>
   );
 };

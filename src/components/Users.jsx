@@ -97,6 +97,7 @@ const Users = () => {
         <button className="col-md-4" onClick={addUser}>
           Submit
         </button>
+         <hr/>
       </div>
       {errorMessage && <div className="error-message">{errorMessage}</div>}
       {users.map((user) => (
@@ -121,6 +122,7 @@ const Users = () => {
           onUpdate={getUsers}
         />
       )}
+      
     </div>
   );
 };
